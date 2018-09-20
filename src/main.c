@@ -89,7 +89,7 @@ UARTDRV_Handle_t uart_handle = &uart_handleData;
 
 #else
 
-    #define UART_TX_BUF_LENGTH 35
+    #define UART_TX_BUF_LENGTH 36
     /*******************************************************************************
      * @var uart_tx_buffer
      * @abstract Stores information received from the MAX board
@@ -364,17 +364,21 @@ void callback_RTC( RTCDRV_TimerID_t id, void * user )
             // Convert data into hex format
             processRTC_HEX();
             processTOF_HEX();
+            UARTDRV_Transmit(uart_handle, uart_tx_buffer, sizeof(uint32_t) * UART_TX_BUF_LENGTH, callback_UARTTX);
+
         #else
             // Convert data into ASCII format
             processRTC_ASCII();
             processTOF_ASCII();
+            UARTDRV_Transmit(uart_handle, uart_tx_buffer, sizeof(uint8_t) * UART_TX_BUF_LENGTH, callback_UARTTX);
+
         #endif
 
         // Send each register individually
         // TODO: Include delimiter in uart_TX buffer and send all registers at once
         //       Potentially will fix bug where last two registers are not properly transmitted
-        UARTDRV_Transmit(uart_handle, uart_tx_buffer, sizeof(uint32_t) * UART_TX_BUF_LENGTH, callback_UARTTX);
-        //for(int i = 0; i < UART_TX_BUF_LENGTH; i++) {
+
+                //for(int i = 0; i < UART_TX_BUF_LENGTH; i++) {
         //    UARTDRV_Transmit(uart_handle, &uart_tx_buffer[i], sizeof(uint32_t), callback_UARTTX);
         //    UARTDRV_Transmit(uart_handle, &delimiter, sizeof(uint8_t), callback_UARTTX);
         //}
@@ -388,10 +392,10 @@ void callback_RTC( RTCDRV_TimerID_t id, void * user )
         MAX_SPI_TX(&spi_tx_buffer[0]);
 
     }
-    //else {
-    //    spi_tx_buffer[0] = READ_INT_STAT_REG;
-    //    MAX_SPI_TXRX(&spi_tx_buffer[0], &spi_rx_buffer[0]);
-    //}
+    else {
+        spi_tx_buffer[0] = READ_INT_STAT_REG;
+        MAX_SPI_TXRX(&spi_tx_buffer[0], &spi_rx_buffer[0]);
+    }
 
 }
 
@@ -454,7 +458,8 @@ int main(void) {
     #else
         uart_tx_buffer[2] = uart_tx_buffer[5] = '/';
         uart_tx_buffer[8] = uart_tx_buffer[20] = 0x20;
-        uart_tx_buffer[11] = uart_tx_buffer[14] = uart_tx_buffer[17] = ':';
+        uart_tx_buffer[11] = uart_tx_buffer[14] = ':';
+        uart_tx_buffer[17] = '.';
         //uart_tx_buffer[33] = 0x0D;
         //uart_tx_buffer[34] = 0x0A;
     #endif
@@ -467,13 +472,7 @@ int main(void) {
     MAX_SPI_TXRX(&spi_tx_buffer[0], &spi_rx_buffer[0]);
 
     // Start a periodic timer with 1000 millisecond timeout
-    //RTCDRV_StartTimer( rtc_id, rtcdrvTimerTypePeriodic, 1000, callback_RTC, NULL );
-
-    //spi_tx_buffer[0] = 0x77;
-    while(1){
-    //	MAX_SPI_TXRX(&spi_tx_buffer[0], &spi_rx_buffer[0]);
-        pollRTC();
-    }
+    RTCDRV_StartTimer( rtc_id, rtcdrvTimerTypePeriodic, 1000, callback_RTC, NULL );
 
 }
 
@@ -550,4 +549,3 @@ void processTOF_ASCII(){
 	gcvt(tofValue, 12, tmp_buffer);
 	sprintf(&uart_tx_buffer[21], "%12s\n\r", tmp_buffer);
 }
-
